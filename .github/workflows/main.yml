@@ -1,0 +1,62 @@
+name: MS WEB
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *" # restart tiap 6 jam otomatis
+
+jobs:
+  run-node-tunnel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # max 6 jam per job
+
+    steps:
+      # 🔹 Ambil file dari repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 🧩 Ekstrak file ZIP dari repo (api.zip)
+      - name: Extract api.zip
+        run: |
+          echo "Extracting api.zip..."
+          unzip -o api.zip -d ./api
+          echo "Extraction done. Contents:"
+          ls -R ./api
+
+      # 🟢 Setup Node.js
+      - name: Setup Node.js v22
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+
+      # 📦 Install dependencies dari folder hasil ekstrak
+      - name: Install dependencies
+        working-directory: ./api
+        run: npm install
+
+      # 🚀 Start Node.js app (dari folder api)
+      - name: Start Node.js app (show logs)
+        working-directory: ./api
+        run: |
+          npm start 2>&1 | tee node.log &
+          echo "Node.js app started with npm start"
+
+      # ☁️ Install cloudflared
+      - name: Install cloudflared
+        run: |
+          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb || sudo apt-get -f install -y
+
+      # 🌐 Jalankan Cloudflare Tunnel
+      - name: Run Cloudflare Tunnel
+        run: |
+          cloudflared tunnel run --token ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }} 2>&1 | tee tunnel.log &
+          echo "Tunnel started"
+
+      # 🔁 Keep workflow alive (biar tidak langsung berhenti)
+      - name: Keep workflow alive
+        run: |
+          while true; do
+            echo "[$(date)] Workflow alive"
+            sleep 300
+          done
