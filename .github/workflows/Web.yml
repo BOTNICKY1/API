@@ -26,19 +26,6 @@ jobs:
           sudo apt update
           sudo apt install -y gh jq
 
-      # ✅ Fix deteksi dobel run
-      - name: Cegah double run
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "🔎 Mengecek workflow aktif lain..."
-          RUNNING=$(gh run list --workflow "MS WEB" --json status --jq '.[] | select(.status=="in_progress" or .status=="queued")' || true)
-          if [ -n "$RUNNING" ]; then
-            echo "⚠️ Ada workflow 'MS WEB' lain yang masih jalan atau menunggu. Batal eksekusi."
-            exit 1
-          fi
-          echo "✅ Tidak ada workflow aktif. Lanjut."
-
       - name: Extract api.zip
         run: |
           unzip -o api.zip -d ./api
