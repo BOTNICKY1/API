@@ -5,7 +5,7 @@ on:
     inputs:
       auto_restart:
         description: "Auto restart tiap 6 jam (true/false)?"
-        required: false
+        required: true
         default: "true"
 
   schedule:
