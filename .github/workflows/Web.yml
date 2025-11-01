@@ -1,29 +1,37 @@
 name: MS WEB
 
 on:
+  # 🔘 Bisa dijalankan manual dari tab "Actions"
   workflow_dispatch:
     inputs:
       auto_restart:
         description: "Jalankan otomatis tiap 6 jam (true/false)?"
         required: false
         default: "true"
+
+  # ⏰ Jalankan otomatis tiap 6 jam
   schedule:
     - cron: "0 */6 * * *"
 
 jobs:
   run-node-tunnel:
+    # ⛔ Kalau dipicu oleh cron tapi auto_restart=false → batal jalan
     if: ${{ github.event_name != 'schedule' || inputs.auto_restart == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 360  # Maksimum runtime 6 jam
 
     steps:
-      # 🧭 Setup GitHub CLI untuk cek status workflow
+      # 🧩 Checkout repository biar folder .git ada
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 🧭 Install GitHub CLI (gh)
       - name: Install GitHub CLI
         run: |
           sudo apt update
           sudo apt install -y gh
 
-      # 🔍 Cek apakah ada workflow aktif lain
+      # 🔍 Cegah workflow dobel
       - name: Cegah double run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,10 +44,6 @@ jobs:
           fi
           echo "✅ Tidak ada workflow aktif. Lanjut jalan."
 
-      # 🔹 Ambil file dari repo
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
       # 🧩 Ekstrak file ZIP dari repo (api.zip)
       - name: Extract api.zip
         run: |
@@ -48,23 +52,23 @@ jobs:
           echo "Extraction done. Contents:"
           ls -R ./api
 
-      # 🟢 Setup Node.js
+      # 🟢 Setup Node.js v22
       - name: Setup Node.js v22
         uses: actions/setup-node@v3
         with:
           node-version: 22
 
-      # 📦 Install dependencies dari folder hasil ekstrak
+      # 📦 Install dependencies
       - name: Install dependencies
         working-directory: ./api
         run: npm install
 
-      # 🚀 Start Node.js app (dari folder api)
+      # 🚀 Jalankan Node.js app
       - name: Start Node.js app (show logs)
         working-directory: ./api
         run: |
           npm start 2>&1 | tee node.log &
-          echo "Node.js app started with npm start"
+          echo "Node.js app started"
 
       # ☁️ Install cloudflared
       - name: Install cloudflared
