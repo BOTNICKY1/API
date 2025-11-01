@@ -1,26 +1,41 @@
 name: MS WEB
 
 on:
-  # ✅ Jalankan manual dari GitHub
   workflow_dispatch:
     inputs:
       auto_restart:
         description: "Jalankan otomatis tiap 6 jam (true/false)?"
         required: false
         default: "true"
-
-  # ⏰ Jadwal otomatis tiap 6 jam
   schedule:
     - cron: "0 */6 * * *"
 
 jobs:
   run-node-tunnel:
-    # 🔒 Kalau job dipicu oleh cron (schedule) tapi auto_restart=false, maka batal jalan
     if: ${{ github.event_name != 'schedule' || inputs.auto_restart == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # max 6 jam per job
+    timeout-minutes: 360
 
     steps:
+      # 🧭 Setup GitHub CLI untuk cek status workflow
+      - name: Install GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install -y gh
+
+      # 🔍 Cek apakah ada workflow aktif lain
+      - name: Cegah double run
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔎 Mengecek apakah ada workflow aktif lain..."
+          gh run list --workflow "MS WEB" --status in_progress --limit 1 > active.txt
+          if [ -s active.txt ]; then
+            echo "⚠️ Ada workflow 'MS WEB' lain yang masih jalan. Batal eksekusi."
+            exit 1
+          fi
+          echo "✅ Tidak ada workflow aktif. Lanjut jalan."
+
       # 🔹 Ambil file dari repo
       - name: Checkout repository
         uses: actions/checkout@v3
