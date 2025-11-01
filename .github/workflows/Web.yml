@@ -1,12 +1,22 @@
 name: MS WEB
 
 on:
+  # ✅ Jalankan manual dari GitHub
   workflow_dispatch:
+    inputs:
+      auto_restart:
+        description: "Jalankan otomatis tiap 6 jam (true/false)?"
+        required: false
+        default: "true"
+
+  # ⏰ Jadwal otomatis tiap 6 jam
   schedule:
-    - cron: "0 */6 * * *" # restart tiap 6 jam otomatis
+    - cron: "0 */6 * * *"
 
 jobs:
   run-node-tunnel:
+    # 🔒 Kalau job dipicu oleh cron (schedule) tapi auto_restart=false, maka batal jalan
+    if: ${{ github.event_name != 'schedule' || inputs.auto_restart == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360  # max 6 jam per job
 
