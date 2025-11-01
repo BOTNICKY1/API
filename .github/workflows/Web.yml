@@ -1,88 +1,71 @@
 name: MS WEB
 
 on:
-  # 🔘 Bisa dijalankan manual dari tab "Actions"
   workflow_dispatch:
     inputs:
       auto_restart:
-        description: "Jalankan otomatis tiap 6 jam (true/false)?"
+        description: "Auto restart tiap 6 jam (true/false)?"
         required: false
         default: "true"
 
-  # ⏰ Jalankan otomatis tiap 6 jam
   schedule:
     - cron: "0 */6 * * *"
 
 jobs:
   run-node-tunnel:
-    # ⛔ Kalau dipicu oleh cron tapi auto_restart=false → batal jalan
     if: ${{ github.event_name != 'schedule' || inputs.auto_restart == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # Maksimum runtime 6 jam
+    timeout-minutes: 360
 
     steps:
-      # 🧩 Checkout repository biar folder .git ada
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 🧭 Install GitHub CLI (gh)
       - name: Install GitHub CLI
         run: |
           sudo apt update
-          sudo apt install -y gh
+          sudo apt install -y gh jq
 
-      # 🔍 Cegah workflow dobel
+      # ✅ Fix deteksi dobel run
       - name: Cegah double run
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "🔎 Mengecek apakah ada workflow aktif lain..."
-          gh run list --workflow "MS WEB" --status in_progress --limit 1 > active.txt
-          if [ -s active.txt ]; then
-            echo "⚠️ Ada workflow 'MS WEB' lain yang masih jalan. Batal eksekusi."
+          echo "🔎 Mengecek workflow aktif lain..."
+          RUNNING=$(gh run list --workflow "MS WEB" --json status --jq '.[] | select(.status=="in_progress" or .status=="queued")' || true)
+          if [ -n "$RUNNING" ]; then
+            echo "⚠️ Ada workflow 'MS WEB' lain yang masih jalan atau menunggu. Batal eksekusi."
             exit 1
           fi
-          echo "✅ Tidak ada workflow aktif. Lanjut jalan."
+          echo "✅ Tidak ada workflow aktif. Lanjut."
 
-      # 🧩 Ekstrak file ZIP dari repo (api.zip)
       - name: Extract api.zip
         run: |
-          echo "Extracting api.zip..."
           unzip -o api.zip -d ./api
-          echo "Extraction done. Contents:"
-          ls -R ./api
 
-      # 🟢 Setup Node.js v22
       - name: Setup Node.js v22
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # 📦 Install dependencies
       - name: Install dependencies
         working-directory: ./api
         run: npm install
 
-      # 🚀 Jalankan Node.js app
       - name: Start Node.js app (show logs)
         working-directory: ./api
         run: |
           npm start 2>&1 | tee node.log &
-          echo "Node.js app started"
 
-      # ☁️ Install cloudflared
       - name: Install cloudflared
         run: |
           wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb || sudo apt-get -f install -y
 
-      # 🌐 Jalankan Cloudflare Tunnel
       - name: Run Cloudflare Tunnel
         run: |
           cloudflared tunnel run --token ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }} 2>&1 | tee tunnel.log &
-          echo "Tunnel started"
 
-      # 🔁 Keep workflow alive (biar tidak langsung berhenti)
       - name: Keep workflow alive
         run: |
           while true; do
