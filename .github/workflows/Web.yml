@@ -34,7 +34,7 @@ jobs:
       # 🔍 Cegah workflow dobel
       - name: Cegah double run
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           echo "🔎 Mengecek apakah ada workflow aktif lain..."
           gh run list --workflow "MS WEB" --status in_progress --limit 1 > active.txt
